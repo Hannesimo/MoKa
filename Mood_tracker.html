@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoKa - Mood Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #38bdf8;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --radius: 12px;
+            --m1: #ef4444; --m2: #f87171; --m3: #fb923c; --m4: #fbbf24; --m5: #facc15;
+            --m6: #eab308; --m7: #a3e635; --m8: #4ade80; --m9: #22c55e; --m10: #15803d;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container { width: 100%; max-width: 500px; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 { font-size: 1.5rem; font-weight: 800; margin: 0; color: var(--accent); letter-spacing: 1px; }
+
+        .nav-btns { display: flex; gap: 12px; }
+        .icon-btn { background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 5px; transition: opacity 0.2s; }
+
+        /* Settings Panel */
+        #settings-panel {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: var(--radius);
+            margin-bottom: 15px;
+            display: none;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .setting-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .setting-section:last-child { border-bottom: none; margin-bottom: 0; }
+        .section-title { font-size: 0.7rem; color: var(--accent); text-transform: uppercase; margin-bottom: 10px; display: block; font-weight: bold; }
+
+        .backup-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-sm { 
+            background: #334155; color: white; border: none; padding: 8px; 
+            border-radius: 6px; font-size: 0.8rem; cursor: pointer; text-align: center;
+        }
+
+        /* Stats Dashboard */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: var(--radius);
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .stat-val { display: block; font-size: 1.4rem; font-weight: bold; }
+        .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
+        
+        /* Standardmäßig versteckt */
+        .hidden { display: none !important; }
+
+        /* Input Area */
+        .input-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--radius);
+            margin-bottom: 25px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        .field-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; display: block; }
+        input[type="date"], input[type="text"] {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        /* Mood Bar */
+        .mood-row { display: flex; justify-content: space-between; gap: 4px; }
+        .mood-btn {
+            flex: 1; aspect-ratio: 1/1; max-width: 42px;
+            border-radius: 6px; border: none; color: white;
+            font-weight: bold; font-size: 0.85rem; cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        /* History */
+        .history-header { font-size: 1.1rem; margin-bottom: 15px; font-weight: 600; color: var(--text-muted); }
+        .entry-card {
+            background: var(--card-bg);
+            padding: 12px 15px;
+            border-radius: var(--radius);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .entry-mood-tag {
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; margin-right: 15px; flex-shrink: 0; color: white;
+        }
+        .entry-body { flex-grow: 1; }
+        .entry-date { font-size: 0.75rem; color: var(--text-muted); }
+        .entry-note { font-size: 0.95rem; margin-top: 2px; }
+        .delete-icon { background: none; border: none; color: #475569; font-size: 1.2rem; cursor: pointer; }
+
+        /* Overlay Analysis Menu */
+        #analysis-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg);
+            z-index: 100;
+            display: none;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        .overlay-content { width: 100%; max-width: 500px; margin: 0 auto; }
+        .filter-bar { display: flex; gap: 8px; margin: 20px 0; overflow-x: auto; padding-bottom: 5px; }
+        .filter-btn {
+            background: var(--card-bg); border: 1px solid #334155; color: var(--text-muted);
+            padding: 8px 14px; border-radius: 20px; font-size: 0.85rem; cursor: pointer;
+        }
+        .filter-btn.active { background: var(--accent); color: var(--bg); font-weight: bold; border-color: var(--accent); }
+        .chart-container { background: var(--card-bg); padding: 15px; border-radius: var(--radius); height: 320px; }
+        .close-btn { background: #334155; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; margin-top: 25px; width: 100%; font-weight: bold; }
+
+        .setting-item { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 0.95rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <h1>MoKa</h1>
+        <div class="nav-btns">
+            <button class="icon-btn" onclick="openAnalysis()" title="Analyse">📊</button>
+            <button class="icon-btn" onclick="toggleSettings()" title="Einstellungen">⚙️</button>
+        </div>
+    </header>
+
+    <div id="settings-panel">
+        <div class="setting-section">
+            <span class="section-title">Anzeige</span>
+            <label class="setting-item">
+                <!-- Checkboxes standardmäßig unchecked -->
+                <input type="checkbox" id="show-avg" onchange="updateVisibility()">
+                <span>Durchschnitt anzeigen</span>
+            </label>
+            <label class="setting-item">
+                <input type="checkbox" id="show-count" onchange="updateVisibility()">
+                <span>Tage anzeigen</span>
+            </label>
+        </div>
+
+        <div class="setting-section">
+            <span class="section-title">Backup & Daten</span>
+            <div class="backup-btns">
+                <button class="btn-sm" onclick="exportData()">💾 Export</button>
+                <button class="btn-sm" onclick="document.getElementById('import-file').click()">📂 Import</button>
+                <input type="file" id="import-file" hidden accept=".json" onchange="importData(event)">
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats standardmäßig mit Klasse hidden -->
+    <div class="stats-grid">
+        <div class="stat-card hidden" id="avg-card">
+            <span class="stat-val" id="avg-display">0,0</span>
+            <span class="stat-label">Gesamt-Schnitt</span>
+        </div>
+        <div class="stat-card hidden" id="count-card">
+            <span class="stat-val" id="count-display">0</span>
+            <span class="stat-label">Einträge</span>
+        </div>
+    </div>
+
+    <div class="input-card">
+        <label class="field-label">Datum</label>
+        <input type="date" id="date-picker">
+        <label class="field-label">Notiz</label>
+        <input type="text" id="note-input" placeholder="Kurze Notiz...">
+        <div class="mood-row" id="mood-bar"></div>
+    </div>
+
+    <div class="history-header">Verlauf</div>
+    <div id="history-list"></div>
+</div>
+
+<div id="analysis-overlay">
+    <div class="overlay-content">
+        <header><h1 style="color: white">Analyse</h1></header>
+        <div class="filter-bar">
+            <button class="filter-btn active" onclick="changeFilter(7, this)">7 Tage</button>
+            <button class="filter-btn" onclick="changeFilter(30, this)">30 Tage</button>
+            <button class="filter-btn" onclick="changeFilter(90, this)">90 Tage</button>
+            <button class="filter-btn" onclick="changeFilter(0, this)">Gesamt</button>
+        </div>
+        <div class="chart-container">
+            <canvas id="moodChart"></canvas>
+        </div>
+        <button class="close-btn" onclick="closeAnalysis()">Schließen</button>
+    </div>
+</div>
+
+<script>
+    let entries = JSON.parse(localStorage.getItem('mokaMoodData')) || [];
+    let moodChart = null;
+    let currentFilterDays = 7;
+    const moodColors = ['#ef4444', '#f87171', '#fb923c', '#fbbf24', '#facc15', '#eab308', '#a3e635', '#4ade80', '#22c55e', '#15803d'];
+
+    window.onload = () => {
+        document.getElementById('date-picker').valueAsDate = new Date();
+        renderMoodBar();
+        updateUI();
+    };
+
+    function renderMoodBar() {
+        const bar = document.getElementById('mood-bar');
+        bar.innerHTML = "";
+        for (let i = 1; i <= 10; i++) {
+            const btn = document.createElement('button');
+            btn.innerText = i;
+            btn.className = `mood-btn`;
+            btn.style.backgroundColor = moodColors[i-1];
+            btn.onclick = () => saveEntry(i);
+            bar.appendChild(btn);
+        }
+    }
+
+    function saveEntry(moodValue) {
+        const dateStr = document.getElementById('date-picker').value;
+        const noteStr = document.getElementById('note-input').value;
+        if (!dateStr) return;
+
+        const existingIndex = entries.findIndex(e => e.date === dateStr);
+        const newEntry = { id: existingIndex >= 0 ? entries[existingIndex].id : Date.now(), date: dateStr, mood: moodValue, note: noteStr };
+
+        if (existingIndex >= 0) entries[existingIndex] = newEntry;
+        else entries.unshift(newEntry);
+
+        entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+        localStorage.setItem('mokaMoodData', JSON.stringify(entries));
+        updateUI();
+    }
+
+    function deleteEntry(id) {
+        if(!confirm("Eintrag wirklich löschen?")) return;
+        entries = entries.filter(e => e.id !== id);
+        localStorage.setItem('mokaMoodData', JSON.stringify(entries));
+        updateUI();
+    }
+
+    function toggleSettings() {
+        const p = document.getElementById('settings-panel');
+        p.style.display = p.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function updateVisibility() {
+        document.getElementById('avg-card').classList.toggle('hidden', !document.getElementById('show-avg').checked);
+        document.getElementById('count-card').classList.toggle('hidden', !document.getElementById('show-count').checked);
+    }
+
+    function updateUI() {
+        const list = document.getElementById('history-list');
+        list.innerHTML = "";
+        let totalMood = 0;
+
+        entries.forEach(e => {
+            totalMood += e.mood;
+            const card = document.createElement('div');
+            card.className = 'entry-card';
+            const d = new Date(e.date);
+            const formattedDate = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+
+            card.innerHTML = `<div class="entry-mood-tag" style="background: ${moodColors[e.mood-1]}">${e.mood}</div>
+                <div class="entry-body"><div class="entry-date">${formattedDate}</div><div class="entry-note">${e.note || '<span style="color:#475569">Keine Notiz</span>'}</div></div>
+                <button class="delete-icon" onclick="deleteEntry(${e.id})">&times;</button>`;
+            list.appendChild(card);
+        });
+
+        document.getElementById('count-display').innerText = entries.length;
+        const avg = entries.length > 0 ? (totalMood / entries.length).toFixed(1) : "0,0";
+        document.getElementById('avg-display').innerText = avg.replace('.', ',');
+    }
+
+    function exportData() {
+        if (entries.length === 0) return alert("Keine Daten vorhanden.");
+        const dataStr = JSON.stringify(entries, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `moka_backup_${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+    }
+
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (Array.isArray(imported)) {
+                    entries = imported;
+                    localStorage.setItem('mokaMoodData', JSON.stringify(entries));
+                    updateUI();
+                    alert("Import erfolgreich!");
+                }
+            } catch (err) { alert("Fehler beim Import!"); }
+        };
+        reader.readAsText(file);
+    }
+
+    function openAnalysis() {
+        document.getElementById('analysis-overlay').style.display = 'block';
+        updateChart();
+    }
+
+    function closeAnalysis() {
+        document.getElementById('analysis-overlay').style.display = 'none';
+        if (moodChart) { moodChart.destroy(); moodChart = null; }
+    }
+
+    function changeFilter(days, btn) {
+        currentFilterDays = days;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updateChart();
+    }
+
+    function updateChart() {
+        let filteredEntries = [...entries];
+        if (currentFilterDays > 0) {
+            const cutoffDate = new Date();
+            cutoffDate.setDate(new Date().getDate() - currentFilterDays);
+            filteredEntries = entries.filter(e => new Date(e.date) >= cutoffDate);
+        }
+        filteredEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const labels = filteredEntries.map(e => new Date(e.date).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'}));
+        const data = filteredEntries.map(e => e.mood);
+
+        // Durchschnitt für den gewählten Zeitraum berechnen
+        const periodAvg = data.length > 0 ? (data.reduce((a, b) => a + b) / data.length) : 0;
+        const avgLineData = Array(data.length).fill(periodAvg);
+
+        if (moodChart) moodChart.destroy();
+        const ctx = document.getElementById('moodChart').getContext('2d');
+        
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, 'rgba(56, 189, 248, 0.4)');
+        gradient.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+        moodChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Stimmung',
+                        data: data,
+                        borderColor: '#38bdf8',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: '#fff',
+                        pointRadius: data.length > 31 ? 1 : 4,
+                        zIndex: 2
+                    },
+                    {
+                        label: 'Durchschnitt',
+                        data: avgLineData,
+                        borderColor: 'rgba(255, 255, 255, 0.25)',
+                        borderWidth: 2,
+                        borderDash: [8, 4], // Gestrichelte Linie
+                        pointRadius: 0,
+                        fill: false,
+                        zIndex: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { min: 1, max: 10, ticks: { stepSize: 1, color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: '#94a3b8', maxRotation: 45, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } }
+                }
+            }
+        });
+    }
+</script>
+</body>
+</html>
